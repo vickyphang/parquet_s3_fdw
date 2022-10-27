@@ -22,7 +22,8 @@ jobs:
     steps:
       - run: pg-setup ${{ matrix.pg }}
       - uses: actions/checkout@v2
-      - run: ./install_arrow.sh
+      - run: bash ./install_arrow.sh
       - run: build-check
         env:
           CCFLAGS: ${{ matrix.ccflags }}
+          USE_PGXS: 1

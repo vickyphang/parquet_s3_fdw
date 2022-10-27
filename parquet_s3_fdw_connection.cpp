@@ -500,7 +500,8 @@ s3_client_open(const char *user, const char *password, bool use_minio)
 	{
 		clientConfig.scheme = Aws::Http::Scheme::HTTPS;
 		clientConfig.region = Aws::Region::AP_NORTHEAST_1;
-		s3_client = new Aws::S3::S3Client(cred, clientConfig);
+		s3_client = new Aws::S3::S3Client(cred, clientConfig,
+				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Always, false);
 	}
 
 	return s3_client;
