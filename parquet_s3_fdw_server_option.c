@@ -46,6 +46,18 @@ parquet_s3_is_valid_server_option(DefElem *def)
 		return true;
 	}
 
+	if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0)
+	{
+        char *str = pstrdup(defGetString(def));
+        if (str == NULL || str == '\0')
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("parquet_s3_fdw: invalid value for string option \"%s\": %s",
+							def->defname, defGetString(def))));
+
+		return true;
+	}
+
 	return false;
 }
 
@@ -66,6 +78,8 @@ parquet_s3_extract_options(List *options, parquet_s3_server_opt * opt)
 			opt->use_minio = defGetBoolean(def);
 		else if (strcmp(def->defname, SERVER_OPTION_KEEP_CONNECTIONS) == 0)
 			opt->keep_connections = defGetBoolean(def);
+		else if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0)
+			opt->aws_region = defGetString(def);
 	}
 }
 

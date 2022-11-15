@@ -41,6 +41,7 @@
 /* Structure to store option information. */
 typedef struct parquet_s3_server_opt
 {
+    char        *aws_region;    /* AWS region */
 	bool		use_minio;		/* Connect to MinIO instead of Amazon S3. */
 	bool		keep_connections;	/* setting value of keep_connections
 									 * server option */
@@ -53,5 +54,6 @@ parquet_s3_server_opt *parquet_s3_get_server_options(Oid serverid);
 /* Option name for CREATE FOREIGN SERVER. */
 #define SERVER_OPTION_USE_MINIO "use_minio"
 #define SERVER_OPTION_KEEP_CONNECTIONS "keep_connections"
+#define SERVER_OPTION_AWS_REGION "aws_region"
 
 #endif							/* __PARQUET_S3_FDW_H__ */

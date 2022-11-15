@@ -113,13 +113,13 @@ PG_FUNCTION_INFO_V1(parquet_s3_fdw_disconnect_all);
 }
 
 /* prototypes of private functions */
-static void make_new_connection(ConnCacheEntry *entry, UserMapping *user, bool use_minio);
+static void make_new_connection(ConnCacheEntry *entry, UserMapping *user, const char *aws_region, bool use_minio);
 static bool disconnect_cached_connections(Oid serverid);
-static Aws::S3::S3Client *create_s3_connection(ForeignServer *server, UserMapping *user, bool use_minio);
+static Aws::S3::S3Client *create_s3_connection(ForeignServer *server, UserMapping *user, const char *aws_region, bool use_minio);
 static void close_s3_connection(ConnCacheEntry *entry);
 static void check_conn_params(const char **keywords, const char **values, UserMapping *user);
 static void parquet_fdw_inval_callback(Datum arg, int cacheid, uint32 hashvalue);
-static Aws::S3::S3Client* s3_client_open(const char *user, const char *password, bool use_minio);
+static Aws::S3::S3Client* s3_client_open(const char *user, const char *password, const char *aws_region, bool use_minio);
 static void s3_client_close(Aws::S3::S3Client *s3_client);
 
 extern "C" void
@@ -142,7 +142,7 @@ parquet_s3_shutdown()
  * if we don't already have a suitable one.
  */
 Aws::S3::S3Client *
-parquetGetConnection(UserMapping *user, bool use_minio)
+parquetGetConnection(UserMapping *user, const char *aws_region, bool use_minio)
 {
 	bool		found;
 	ConnCacheEntry *entry;
@@ -209,7 +209,7 @@ parquetGetConnection(UserMapping *user, bool use_minio)
 	 * will remain in a valid empty state, ie conn == NULL.)
 	 */
 	if (entry->conn == NULL)
-		make_new_connection(entry, user, use_minio);
+		make_new_connection(entry, user, aws_region, use_minio);
 
 	return entry->conn;
 }
@@ -219,7 +219,7 @@ parquetGetConnection(UserMapping *user, bool use_minio)
  * establish new connection to the remote server.
  */
 static void
-make_new_connection(ConnCacheEntry *entry, UserMapping *user, bool use_minio)
+make_new_connection(ConnCacheEntry *entry, UserMapping *user, const char *aws_region, bool use_minio)
 {
 	ForeignServer *server = GetForeignServer(user->serverid);
 
@@ -236,7 +236,7 @@ make_new_connection(ConnCacheEntry *entry, UserMapping *user, bool use_minio)
 								ObjectIdGetDatum(user->umid));
 
 	/* Now try to make the handle */
-	entry->conn = create_s3_connection(server, user, use_minio);
+	entry->conn = create_s3_connection(server, user, aws_region, use_minio);
 
 	elog(DEBUG3, "parquet_s3_fdw: new parquet_fdw handle %p for server \"%s\" (user mapping oid %u, userid %u)",
 			entry->conn, server->servername, user->umid, user->userid);
@@ -324,7 +324,7 @@ ExtractConnectionOptions(List *defelems, const char **keywords,
  * Connect to remote server using specified server and user mapping properties.
  */
 static Aws::S3::S3Client *
-create_s3_connection(ForeignServer *server, UserMapping *user, bool use_minio)
+create_s3_connection(ForeignServer *server, UserMapping *user, const char *aws_region, bool use_minio)
 {
 	Aws::S3::S3Client	   *volatile conn = NULL;
 
@@ -363,7 +363,7 @@ create_s3_connection(ForeignServer *server, UserMapping *user, bool use_minio)
 				password = defGetString(def);
 		}
 
-		conn = s3_client_open(id, password, use_minio);
+		conn = s3_client_open(id, password, aws_region, use_minio);
 		if (!conn)
 			ereport(ERROR,
 					(errcode(ERRCODE_SQLCLIENT_UNABLE_TO_ESTABLISH_SQLCONNECTION),
@@ -477,7 +477,7 @@ parquet_fdw_inval_callback(Datum arg, int cacheid, uint32 hashvalue)
  * Create S3 handle.
  */
 static Aws::S3::S3Client*
-s3_client_open(const char *user, const char *password, bool use_minio)
+s3_client_open(const char *user, const char *password, const char *aws_region, bool use_minio)
 {
     const Aws::String access_key_id = user;
     const Aws::String secret_access_key = password;
@@ -499,6 +499,10 @@ s3_client_open(const char *user, const char *password, bool use_minio)
 	else
 	{
 		clientConfig.scheme = Aws::Http::Scheme::HTTPS;
+        if (aws_region != NULL) {
+            const Aws::String region = aws_region;
+            clientConfig.region = region;
+        }
 		s3_client = new Aws::S3::S3Client(cred, clientConfig,
 				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Always, false);
 	}
@@ -530,7 +534,7 @@ parquetGetConnectionByTableid(Oid foreigntableid)
         UserMapping   *user = GetUserMapping(GetUserId(), fserver->serverid);
         parquet_s3_server_opt *options = parquet_s3_get_options(foreigntableid);
 
-        s3client = parquetGetConnection(user, options->use_minio);
+        s3client = parquetGetConnection(user, options->aws_region, options->use_minio);
     }
     return s3client;
 }
@@ -762,7 +766,7 @@ parquetImportForeignSchemaS3(ImportForeignSchemaStmt *stmt, Oid serverOid)
     ForeignServer *fserver = GetForeignServer(serverOid);
     UserMapping   *user = GetUserMapping(GetUserId(), fserver->serverid);
     parquet_s3_server_opt *options = parquet_s3_get_server_options(serverOid);
-    s3client = parquetGetConnection(user, options->use_minio);
+    s3client = parquetGetConnection(user, options->aws_region, options->use_minio);
 
     objects = parquetGetS3ObjectList(s3client, stmt->remote_schema);
 
@@ -846,7 +850,7 @@ parquetExtractParquetFields(List *fields, char **paths, const char *servername) 
             ForeignServer *fserver = GetForeignServerByName(servername, false);
             UserMapping   *user = GetUserMapping(GetUserId(), fserver->serverid);
             parquet_s3_server_opt *options = parquet_s3_get_server_options(fserver->serverid);
-            Aws::S3::S3Client *s3client = parquetGetConnection(user, options->use_minio);
+            Aws::S3::S3Client *s3client = parquetGetConnection(user, options->aws_region, options->use_minio);
 
             fields = extract_parquet_fields(paths[0], NULL, s3client);
         }
