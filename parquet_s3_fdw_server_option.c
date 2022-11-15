@@ -48,8 +48,8 @@ parquet_s3_is_valid_server_option(DefElem *def)
 
 	if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0)
 	{
-        char *str = pstrdup(defGetString(def));
-        if (str == NULL || str == '\0')
+		char *str = pstrdup(defGetString(def));
+		if (str == NULL || strnlen(str, 1) == 0)
 			ereport(ERROR,
 					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 					 errmsg("parquet_s3_fdw: invalid value for string option \"%s\": %s",
