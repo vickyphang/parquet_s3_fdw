@@ -653,17 +653,11 @@ parquet_disconnect_s3_server()
 FileLocation
 parquetFilenamesValidator(const char *filename, FileLocation loc)
 {
-    if (IS_S3_PATH(filename))
-    {
-        if (loc == LOC_LOCAL)
-            elog(ERROR, "parquet_s3_fdw: Cannot specify the mix of local file and S3 file");
+    // Disable local file access
+    if (IS_S3_PATH(filename)) {
         return LOC_S3;
-    }
-    else
-    {
-        if (loc == LOC_S3)
-            elog(ERROR, "parquet_s3_fdw: Cannot specify the mix of local file and S3 file");
-        return LOC_LOCAL;
+    } else {
+        elog(ERROR, "parquet_s3_fdw: Invalid S3 file");
     }
 }
 
