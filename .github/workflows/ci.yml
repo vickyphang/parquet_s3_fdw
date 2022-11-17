@@ -7,23 +7,17 @@ on:
     branches: ['*']
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        pg: [14, 13, 12, 11, 10]
-        ccflags: ['']
-        include:
-          - pg: 13
-            ccflags: '-DCACHING_TEST'
-    name: PostgreSQL ${{ matrix.pg }}
+  build:
     runs-on: ubuntu-latest
-    container: zilder/pg-ext-check
     steps:
-      - run: pg-setup ${{ matrix.pg }}
       - uses: actions/checkout@v2
-      - run: bash ./install_arrow.sh
-      - run: build-check
-        env:
-          CCFLAGS: ${{ matrix.ccflags }}
-          USE_PGXS: 1
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Build
+        uses: docker/build-push-action@v3
+        with:
+          tags: hydrasdb/parquet_s3_fdw:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
