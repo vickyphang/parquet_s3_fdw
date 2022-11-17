@@ -39,6 +39,7 @@ RUN set -eux; \
     cmake ../aws-sdk-cpp -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/usr/local/ -DCMAKE_INSTALL_PREFIX=/usr/local/ -DBUILD_ONLY="s3" ;\
     nproc | xargs -I % make -j% ;\
     nproc | xargs -I % make -j% install
+RUN cp -r /usr/local/lib/* /usr/lib/$(uname -m)-linux-gnu/
 
 # make sure the right postgres version is active
 ENV PATH="/usr/lib/postgresql/${POSTGRES_BASE_VERSION}/bin:$PATH"
