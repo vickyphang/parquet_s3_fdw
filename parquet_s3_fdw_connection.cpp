@@ -659,19 +659,6 @@ parquetFilenamesValidator(const char *filename, FileLocation loc)
     } else {
         elog(ERROR, "parquet_s3_fdw: Invalid S3 file");
     }
-
-    // if (IS_S3_PATH(filename))
-    // {
-        // if (loc == LOC_LOCAL)
-            // elog(ERROR, "parquet_s3_fdw: Cannot specify the mix of local file and S3 file");
-        // return LOC_S3;
-    // }
-    // else
-    // {
-        // if (loc == LOC_S3)
-            // elog(ERROR, "parquet_s3_fdw: Cannot specify the mix of local file and S3 file");
-        // return LOC_LOCAL;
-    // }
 }
 
 /*
