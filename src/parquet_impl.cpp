@@ -2811,20 +2811,6 @@ parquet_fdw_validator_impl(PG_FUNCTION_ARGS)
             {
                 // Disable local dir access
                 elog(ERROR, "parquet_s3_fdw: Invalid S3 dir");
-                // struct stat stat_buf;
-
-                // if (stat(dirname, &stat_buf) != 0)
-                // {
-                    // int e = errno;
-
-                    // ereport(ERROR,
-                            // (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                             // errmsg("parquet_s3_fdw: %s", strerror(e))));
-                // }
-                // if (!S_ISDIR(stat_buf.st_mode))
-                    // ereport(ERROR,
-                            // (errcode(ERRCODE_INVALID_PARAMETER_VALUE),
-                             // errmsg("parquet_s3_fdw: %s is not a directory", dirname)));
 
             }
             filename_provided = true;
