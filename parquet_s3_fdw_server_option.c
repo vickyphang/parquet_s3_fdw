@@ -3,7 +3,7 @@
  * parquet_s3_fdw_server_option.c
  *		  Server option management for parquet_s3_fdw
  *
- * Portions Copyright (c) 2021, TOSHIBA CORPORATION
+ * Portions Copyright (c) 2020, TOSHIBA CORPORATION
  *
  * IDENTIFICATION
  *		  contrib/parquet_s3_fdw/parquet_s3_fdw_server_option.c
@@ -46,8 +46,27 @@ parquet_s3_is_valid_server_option(DefElem *def)
 		return true;
 	}
 
+	if (strcmp(def->defname, SERVER_OPTION_REGION) == 0 ||
+		strcmp(def->defname, SERVER_OPTION_ENDPOINT) == 0)
+	{
+		return true;
+	}
+
+	if (strcmp(def->defname, SERVER_OPTION_REGION) == 0)
+	{
+		char *str = pstrdup(defGetString(def));
+		if (str == NULL || strnlen(str, 1) == 0)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
+					 errmsg("parquet_s3_fdw: invalid value for string option \"%s\": %s",
+							def->defname, defGetString(def))));
+
+		return true;
+	}
+
 	if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0)
 	{
+		elog(WARNING, "aws_region has been deprecated, please use region instead");
 		char *str = pstrdup(defGetString(def));
 		if (str == NULL || strnlen(str, 1) == 0)
 			ereport(ERROR,
@@ -78,8 +97,14 @@ parquet_s3_extract_options(List *options, parquet_s3_server_opt * opt)
 			opt->use_minio = defGetBoolean(def);
 		else if (strcmp(def->defname, SERVER_OPTION_KEEP_CONNECTIONS) == 0)
 			opt->keep_connections = defGetBoolean(def);
-		else if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0)
-			opt->aws_region = defGetString(def);
+		else if (strcmp(def->defname, SERVER_OPTION_REGION) == 0)
+			opt->region = defGetString(def);
+		else if (strcmp(def->defname, SERVER_OPTION_ENDPOINT) == 0)
+			opt->endpoint = defGetString(def);
+		else if (strcmp(def->defname, SERVER_OPTION_AWS_REGION) == 0) {
+			elog(WARNING, "aws_region has been deprecated, please use region instead");
+			opt->region = defGetString(def);
+		}
 	}
 }
 
@@ -103,6 +128,8 @@ parquet_s3_get_options(Oid foreignoid)
 	opt->use_minio = false;
 	/* By default, all the connections to any foreign servers are kept open. */
 	opt->keep_connections = true;
+	opt->region = SERVER_OPTION_REGION;
+	opt->endpoint = SERVER_OPTION_ENDPOINT;
 
 	/*
 	 * Extract options from FDW objects.
@@ -150,6 +177,8 @@ parquet_s3_get_server_options(Oid serverid)
 	opt->use_minio = false;
 	/* By default, all the connections to any foreign servers are kept open. */
 	opt->keep_connections = true;
+	opt->region = SERVER_OPTION_REGION;
+	opt->endpoint = SERVER_OPTION_ENDPOINT;
 
 	/* Get server options. */
 	f_server = GetForeignServer(serverid);
