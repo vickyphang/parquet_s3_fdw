@@ -8,9 +8,9 @@ Read-only Apache Parquet foreign data wrapper supporting S3 access for PostgreSQ
 
 ## Installation
 ### 1. Install dependent libraries
-`parquet_s3_fdw` requires `libarrow` and `libparquet` installed in your system (requires version 0.15+, for previous versions use branch [arrow-0.14](https://github.com/adjust/parquet_fdw/tree/arrow-0.14)). Please refer to [building guide](https://github.com/apache/arrow/blob/master/docs/source/developers/cpp/building.rst).
+- `parquet_s3_fdw` requires `libarrow` and `libparquet` installed in your system (Confirmed tag is apache-arrow-12.0.0). Please refer to [building guide](https://github.com/apache/arrow/blob/master/docs/source/developers/cpp/building.rst).
 
-`AWS SDK for C++ (libaws-cpp-sdk-core libaws-cpp-sdk-s3)` is also required (Confirmed version is 1.9.263).
+- `AWS SDK for C++ (libaws-cpp-sdk-core libaws-cpp-sdk-s3)` is also required (Confirmed version is 1.11.91). Please refer to [building guide](https://docs.aws.amazon.com/sdk-for-cpp/v1/developer-guide/setup-linux.html).
 
 Attention!  
 We reccomend to build `libarrow`, `libparquet` and `AWS SDK for C++` from the source code. We failed to link if using pre-compiled binaries because gcc version is different between arrow and AWS SDK.
@@ -19,7 +19,11 @@ We reccomend to build `libarrow`, `libparquet` and `AWS SDK for C++` from the so
 ```sh
 make install
 ```
-or in case when PostgreSQL is installed in a custom location:
+in case build FDW outside the source tree of PostgreSQL:
+```sh
+USE_PGXS=1 make install
+```
+in case when PostgreSQL is installed in a custom location:
 ```sh
 make install PG_CONFIG=/path/to/pg_config
 ```
@@ -36,6 +40,11 @@ CREATE EXTENSION parquet_s3_fdw;
 ```sql
 CREATE SERVER parquet_s3_srv FOREIGN DATA WRAPPER parquet_s3_fdw;
 ```
+if using Custom S3-Compatible Storage, please use endpoint option for create server.
+```sql
+CREATE SERVER parquet_s3_srv FOREIGN DATA WRAPPER parquet_s3_fdw OPTIONS (endpoint 'https://s3-endpoint.com');
+```
+
 If using [MinIO][3] instead of AWS S3, please use use_minio option for create server.
 ```sql
 CREATE SERVER parquet_s3_srv FOREIGN DATA WRAPPER parquet_s3_fdw OPTIONS (use_minio 'true');
@@ -44,7 +53,7 @@ CREATE SERVER parquet_s3_srv FOREIGN DATA WRAPPER parquet_s3_fdw OPTIONS (use_mi
 ### Create user mapping
 You have to specify user name and password if accessing Amazon S3.
 ```sql
-CREATE USER MAPPING FOR public SERVER parquet_s3_srv OPTIONS (user 's3user', password 's3password');
+CREATE USER MAPPING FOR public SERVER parquet_s3_srv OPTIONS (user 's3_access_key', password 's3_secret_key_');
 ```
 
 ### Create foreign table
