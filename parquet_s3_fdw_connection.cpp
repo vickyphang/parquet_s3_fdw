@@ -491,36 +491,76 @@ parquet_fdw_inval_callback(Datum arg, int cacheid, uint32 hashvalue)
 /*
  * Create S3 handle.
  */
+// static Aws::S3::S3Client*
+// s3_client_open(const char *user, const char *password, bool use_minio, const char *endpoint, const char * awsRegion)
+// {
+//     const Aws::String access_key_id = user;
+//     const Aws::String secret_access_key = password;
+// 	Aws::Auth::AWSCredentials cred = Aws::Auth::AWSCredentials(access_key_id, secret_access_key);
+// 	Aws::S3::S3Client *s3_client;
+
+// 	pthread_mutex_lock(&cred_mtx);
+// 	Aws::Client::ClientConfiguration clientConfig;
+// 	pthread_mutex_unlock(&cred_mtx);
+
+// 	if (use_minio)
+// 	{
+// 		const Aws::String defaultEndpoint = "127.0.0.1:9000";
+// 		clientConfig.scheme = Aws::Http::Scheme::HTTP;
+// 		clientConfig.endpointOverride = endpoint ? (Aws::String) endpoint : defaultEndpoint;
+// 		s3_client = new Aws::S3::S3Client(cred, clientConfig,
+// 				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+// 	}
+// 	else
+// 	{
+// 		const Aws::String defaultRegion = Aws::Region::US_EAST_1;
+// 		clientConfig.scheme = Aws::Http::Scheme::HTTPS;
+// 		clientConfig.region = awsRegion ? (Aws::String) awsRegion : defaultRegion;
+// 		s3_client = new Aws::S3::S3Client(cred, clientConfig,
+// 				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Always, false);
+// 	}
+// 	return s3_client;
+// }
+
 static Aws::S3::S3Client*
-s3_client_open(const char *user, const char *password, bool use_minio, const char *endpoint, const char * awsRegion)
+s3_client_open(const char *user, const char *password, bool use_minio, const char *endpoint, const char *awsRegion)
 {
     const Aws::String access_key_id = user;
     const Aws::String secret_access_key = password;
-	Aws::Auth::AWSCredentials cred = Aws::Auth::AWSCredentials(access_key_id, secret_access_key);
-	Aws::S3::S3Client *s3_client;
+    Aws::Auth::AWSCredentials cred = Aws::Auth::AWSCredentials(access_key_id, secret_access_key);
+    Aws::S3::S3Client *s3_client;
 
-	pthread_mutex_lock(&cred_mtx);
-	Aws::Client::ClientConfiguration clientConfig;
-	pthread_mutex_unlock(&cred_mtx);
+    pthread_mutex_lock(&cred_mtx);
+    Aws::Client::ClientConfiguration clientConfig;
+    pthread_mutex_unlock(&cred_mtx);
 
-	if (use_minio)
-	{
-		const Aws::String defaultEndpoint = "127.0.0.1:9000";
-		clientConfig.scheme = Aws::Http::Scheme::HTTP;
-		clientConfig.endpointOverride = endpoint ? (Aws::String) endpoint : defaultEndpoint;
-		s3_client = new Aws::S3::S3Client(cred, clientConfig,
-				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
-	}
-	else
-	{
-		const Aws::String defaultRegion = Aws::Region::US_EAST_1;
-		clientConfig.scheme = Aws::Http::Scheme::HTTPS;
-		clientConfig.region = awsRegion ? (Aws::String) awsRegion : defaultRegion;
-		s3_client = new Aws::S3::S3Client(cred, clientConfig,
-				Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Always, false);
-	}
-	return s3_client;
+    if (use_minio)
+    {
+        const Aws::String defaultEndpoint = "127.0.0.1:9000";
+        clientConfig.scheme = Aws::Http::Scheme::HTTP;
+        clientConfig.endpointOverride = endpoint ? (Aws::String) endpoint : defaultEndpoint;
+        s3_client = new Aws::S3::S3Client(cred, clientConfig,
+                                          Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+    }
+    else if (endpoint != nullptr) // New condition for custom S3-compatible storage
+    {
+        clientConfig.scheme = Aws::Http::Scheme::HTTPS;
+        clientConfig.endpointOverride = (Aws::String)endpoint;
+        s3_client = new Aws::S3::S3Client(cred, clientConfig,
+                                          Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+    }
+    else
+    {
+        const Aws::String defaultRegion = "ap-northeast-1";
+        clientConfig.scheme = Aws::Http::Scheme::HTTPS;
+        clientConfig.region = awsRegion ? (Aws::String) awsRegion : defaultRegion;
+        s3_client = new Aws::S3::S3Client(cred, clientConfig,
+                                          Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never, false);
+    }
+
+    return s3_client;
 }
+
 
 /*
  * Close S3 handle.
